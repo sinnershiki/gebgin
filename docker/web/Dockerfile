@@ -6,7 +6,7 @@ ENV GO111MODULE=on
 
 ADD . /go/app/.
 
-RUN go build
+RUN go mod download
 
-CMD ["go", "run", "main.go"]
+CMD ["go", "run", "cmd/gebgin/main.go"]
 
