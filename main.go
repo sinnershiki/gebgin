@@ -37,11 +37,27 @@ func gormConnect() *gorm.DB {
 	fmt.Println(DBName)
 
 	connectTemplate := "%s:%s@%s/%s"
-	connect := fmt.Sprintf(connectTemplate, DBUser, DBPass, "tcp(mysql:3306)", DBName)
-	db, err := gorm.Open("mysql", connect)
+	connect := fmt.Sprintf(connectTemplate, DBUser, DBPass, "tcp(mysql:3306)", DBName+"?parseTime=true&loc=Asia%2FTokyo")
 
-	if err != nil {
-		log.Println(err.Error())
+	var db *gorm.DB
+	var err error
+	countdown := 30
+	for countdown > 0 {
+		db, err = gorm.Open("mysql", connect)
+
+		if err != nil {
+			log.Println("Not ready. Retry connecting...")
+			time.Sleep(time.Second)
+
+			countdown--
+			if countdown <= 0 {
+				panic(err)
+			}
+
+		} else {
+			countdown = 0
+			log.Println("Connect Successfully")
+		}
 	}
 
 	return db
@@ -81,7 +97,35 @@ func setRouter(db *gorm.DB) *gin.Engine {
 		db.Find(&messages)
 		c.JSON(http.StatusOK, messages)
 	})
+	//1レコード
+	router.GET("/message/:id", func(c *gin.Context) {
+		message := NewMessage()
+		id := c.Param("id")
 
+		db.Where("ID = ?", id).First(&message)
+		c.JSON(http.StatusOK, message)
+	})
+
+	//UPDATE
+	router.PUT("/message/:id", func(c *gin.Context) {
+		message := NewMessage()
+		id := c.Param("id")
+
+		data := NewMessage()
+		if err := c.BindJSON(&data); err != nil {
+			c.String(http.StatusBadRequest, "Request is failed: "+err.Error())
+		}
+
+		db.Where("ID = ?", id).First(&message).Updates(&data)
+	})
+
+	//DELETE
+	router.DELETE("/message/:id", func(c *gin.Context) {
+		message := NewMessage()
+		id := c.Param("id")
+
+		db.Where("ID = ?", id).Delete(&message)
+	})
 	return router
 }
 
